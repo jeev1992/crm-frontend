@@ -1,15 +1,18 @@
 import MaterialTable from "@material-table/core"
 import { useState, useEffect } from "react";
-import { fetchTickets, createTicketApi } from "../api/ticket";
+import { fetchTickets, createTicketApi, updateTicketApi } from "../api/ticket";
 import Sidebar from "../components/Sidebar";
 import { Button, Modal } from "react-bootstrap";
-import { Dropdown, DropdownButton } from 'react-bootstrap'
 
 
 function Customer(){
     const [ticketDetails, setTicketDetails] = useState([]);
     const [message, setMessage] = useState("");
     const [createTicketModal, setCreateTicketModal] = useState(false)
+    const [updateTicketModal, setUpdateTicketModal] = useState(false)
+    const [currentSelectedTicket, setCurrentSelectedTicket] = useState({})
+
+    const updateCurrentSelectedTicket = (data) => setCurrentSelectedTicket(data)
 
     const columns = [
         {
@@ -76,6 +79,46 @@ function Customer(){
         })
     }
 
+    const editTicket = (ticketDetail) => {
+
+        const ticket = {
+            _id: ticketDetail._id,
+            title: ticketDetail.title,
+            description: ticketDetail.description,
+            assignee: ticketDetail.assignee,
+            reporter: ticketDetail.reporter,
+            priority: ticketDetail.ticketPriority,
+            status: ticketDetail.status
+        }
+
+        setCurrentSelectedTicket(ticket)
+        setUpdateTicketModal(true)
+        console.log("Selected ticket details is " + JSON.stringify(currentSelectedTicket))
+    }
+
+    const onTicketUpdate = (e) => {
+        if(e.target.name === "description"){
+            currentSelectedTicket.description = e.target.value
+        }else if(e.target.name === "status"){
+            currentSelectedTicket.status = e.target.status
+        }
+
+        updateCurrentSelectedTicket(Object.assign({}, currentSelectedTicket))
+    }
+
+    const updateTicket = (e) => {
+        e.preventDefault()
+
+        updateTicketApi(currentSelectedTicket._id, currentSelectedTicket)
+        .then((res) => {
+            setUpdateTicketModal(false)
+            setMessage("Ticket updated successfully")
+            fetchTicketData()
+        }).catch((err) => {
+            setMessage(err.message)
+        })
+    }
+
     return(
         <div className="bg-light vh-100">
             <Sidebar />
@@ -85,6 +128,7 @@ function Customer(){
             <p className="text-center text-muted">Take a look at all your tickets below!</p>
             <div className="container-fluid p-5 p-3">
                 <MaterialTable
+                    onRowClick={(event, rowData) => editTicket(rowData)}
                     title="Tickets raised by you"
                     columns={columns}
                     data={ticketDetails}
@@ -141,6 +185,61 @@ function Customer(){
                         </form>
                     </Modal.Body>
                 </Modal>) : null}
+
+
+                {updateTicketModal ? (
+                    <Modal
+                        show={updateTicketModal}
+                        centered
+                        onHide={() => setUpdateTicketModal(false)}
+                    >
+                        <Modal.Header>Update ticket</Modal.Header>
+                        <Modal.Body>
+                            <form onSubmit={updateTicket}>
+                                <h5 className="card-subtitle text-success lead">ID: {currentSelectedTicket._id}</h5>
+
+                                <div className="input-group m-1">
+                                    <label className="label label-md input-group-text">Title</label>
+                                    <input className="form-control" type="text" name="title" value={currentSelectedTicket.title} disabled/>
+                                </div>
+
+                                <div className="input-group m-1">
+                                    <label className="label label-md input-group-text">Assignee</label>
+                                    <input type="text" className="form-control" name="assignee" value={currentSelectedTicket.assignee} disabled />
+                                </div>
+
+                                <div className="input-group m-1">
+                                    <label className="label label-md input-group-text">Priority</label>
+                                    <input type="text" className="form-control" name="ticketPriority" value={currentSelectedTicket.priority} disabled />
+                                </div>
+
+                                <div className="input-group m-1">
+                                    <label className="label label-md input-group-text">Description</label>
+                                    <textarea
+                                        type="text"
+                                        rows="3"
+                                        name="description"
+                                        value={currentSelectedTicket.description}
+                                        onChange={onTicketUpdate}
+                                    />
+                                </div>
+
+                                <div>
+                                    <label>Status</label>
+                                    <select onChange={onTicketUpdate} name="status" value={currentSelectedTicket.status}>
+                                        <option value="OPEN">OPEN</option>
+                                        <option value="CLOSED">CLOSED</option>
+                                    </select>
+                                </div>
+
+                                <div className="d-flex justify-content-end">
+                                    <Button variant="secondary" className="m-1" onClick={() => setUpdateTicketModal(false)}>Cancel</Button>
+                                    <Button variant="success" className="m-1" type="submit">Update</Button>
+                                </div>
+                            </form>
+                        </Modal.Body>
+                    </Modal>
+                ) : null}
             </div>
         </div>
     )
